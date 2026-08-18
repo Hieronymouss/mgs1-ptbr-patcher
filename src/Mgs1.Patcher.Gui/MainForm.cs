@@ -46,8 +46,8 @@ internal sealed class MainForm : Form
         Text = "MGS1 PT-BR — Aplicador de tradução";
 
         Controls.Add(BuildMenu());
-        Controls.Add(BuildDiscGroup("Disco 1", 42, disc1Cue, disc1State, () => SelectCueAsync("disc1")));
-        Controls.Add(BuildDiscGroup("Disco 2", 128, disc2Cue, disc2State, () => SelectCueAsync("disc2")));
+        Controls.Add(BuildDiscGroup("disc1", "Disco 1", 42, disc1Cue, disc1State, () => SelectCueAsync("disc1")));
+        Controls.Add(BuildDiscGroup("disc2", "Disco 2", 128, disc2Cue, disc2State, () => SelectCueAsync("disc2")));
         Controls.Add(BuildDestinationGroup());
         Controls.Add(BuildStatusArea());
 
@@ -79,6 +79,7 @@ internal sealed class MainForm : Form
     }
 
     private GroupBox BuildDiscGroup(
+        string discId,
         string title,
         int top,
         TextBox cueBox,
@@ -97,7 +98,24 @@ internal sealed class MainForm : Form
         stateLabel.Top = 47;
         stateLabel.Width = 484;
         group.Controls.AddRange([cueLabel, cueBox, choose, stateLabel]);
+        ConfigureCueDropTarget(group, discId);
         return group;
+    }
+
+    private void ConfigureCueDropTarget(Control target, string discId)
+    {
+        target.AllowDrop = true;
+        target.DragEnter += (_, eventArgs) =>
+        {
+            eventArgs.Effect = CanAcceptCueDrop(eventArgs.Data)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+        };
+        target.DragDrop += async (_, eventArgs) => await HandleCueDropAsync(discId, eventArgs.Data);
+        foreach (Control child in target.Controls)
+        {
+            ConfigureCueDropTarget(child, discId);
+        }
     }
 
     private GroupBox BuildDestinationGroup()
@@ -141,7 +159,7 @@ internal sealed class MainForm : Form
             ApplicationDataRoot root = ApplicationDataRoot.Resolve(startupArguments);
             controller = await PatchWorkflowController.CreateAsync(root);
             controller.StateChanged += OnControllerStateChanged;
-            status.Text = "Selecione os CUEs limpos dos Discos 1 e 2.";
+            status.Text = "Selecione ou arraste os CUEs limpos dos Discos 1 e 2.";
         }
         catch (Exception exception) when (exception is ApplicationDataException or PatcherException or IOException or UnauthorizedAccessException)
         {
@@ -178,11 +196,42 @@ internal sealed class MainForm : Form
             return;
         }
 
+        await CheckCueAsync(discId, dialog.FileName);
+    }
+
+    private bool CanAcceptCueDrop(IDataObject? data) =>
+        controller is not null
+        && !busy
+        && CueDropPolicy.Evaluate(data?.GetData(DataFormats.FileDrop) as string[]).Kind == CueDropCandidateKind.Accepted;
+
+    private async Task HandleCueDropAsync(string discId, IDataObject? data)
+    {
+        if (controller is null || busy)
+        {
+            return;
+        }
+
+        CueDropCandidate candidate = CueDropPolicy.Evaluate(data?.GetData(DataFormats.FileDrop) as string[]);
+        if (candidate.Kind != CueDropCandidateKind.Accepted || candidate.CuePath is null)
+        {
+            return;
+        }
+
+        await CheckCueAsync(discId, candidate.CuePath);
+    }
+
+    private async Task CheckCueAsync(string discId, string cuePath)
+    {
+        if (controller is null || busy)
+        {
+            return;
+        }
+
         BeginBusy(cancellable: true);
         try
         {
             status.Text = discId == "disc1" ? "Conferindo Disco 1 por hash..." : "Conferindo Disco 2 por hash...";
-            DiscSelectionState selection = await controller.SelectCueAsync(discId, dialog.FileName, workCancellation!.Token);
+            DiscSelectionState selection = await controller.SelectCueAsync(discId, cuePath, workCancellation!.Token);
             ApplySelectionToView(selection);
             PatchUserMessage message = PatchUserMessages.ForSelection(selection);
             status.Text = message.Text;
@@ -286,7 +335,7 @@ internal sealed class MainForm : Form
         Label state = selection.RequestedDiscId == "disc1" ? disc1State : disc2State;
         cue.Text = selection.CuePath ?? string.Empty;
         state.Text = selection.Kind == DiscSelectionKind.Unselected
-            ? "Aguardando seleção."
+            ? "Aguardando seleção — arraste um CUE aqui."
             : PatchUserMessages.ForSelection(selection).Text;
     }
 
@@ -403,7 +452,7 @@ internal sealed class MainForm : Form
 
     private void ShowHowTo() => MessageBox.Show(
         this,
-        "1. Selecione o CUE limpo de cada disco. A BIN indicada no CUE é localizada na mesma pasta e conferida por hash.\n\n" +
+        "1. Selecione o CUE limpo de cada disco com Procurar ou arraste-o para o painel correspondente. A BIN indicada no CUE é localizada na mesma pasta e conferida por hash.\n\n" +
         "2. Escolha uma pasta de destino vazia. Cada par usará o nome do CUE original com o sufixo (PT-BR).\n\n" +
         "3. Clique em Aplicar tradução. Não há substituição, continuação nem aceitação de outras revisões.",
         "Como usar",
@@ -430,7 +479,7 @@ internal sealed class MainForm : Form
     {
         AutoEllipsis = true,
         ForeColor = SystemColors.ControlText,
-        Text = "Aguardando seleção.",
+        Text = "Aguardando seleção — arraste um CUE aqui.",
         TextAlign = ContentAlignment.MiddleLeft,
     };
 }

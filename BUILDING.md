@@ -41,28 +41,31 @@ O comando produz o aplicativo, mas não o runtime privado nem os payloads BPS da
 tradução. Os payloads não são armazenados no Git e somente integram os pacotes
 oficiais aprovados.
 
-Uma distribuição funcional usa esta estrutura:
+O ZIP oficial contém uma única pasta para que **Extrair aqui** não espalhe os
+arquivos no diretório escolhido. Dentro dela, a distribuição funcional usa
+esta estrutura:
 
 ```text
-Mgs1.Patcher.Gui.exe
-Mgs1.Patcher.Gui.dll
-Mgs1.Patcher.Gui.Logic.dll
-Mgs1.Patcher.Core.dll
-Mgs1.Patcher.Gui.deps.json
-Mgs1.Patcher.Gui.runtimeconfig.json
-data/
-  release-manifest.json
-  patches/
-    disc1.bin.bps
-    disc1.cue.bps
-    disc2.bin.bps
-    disc2.cue.bps
-runtime/
-  host/fxr/10.0.10/
-  shared/Microsoft.NETCore.App/10.0.10/
-  shared/Microsoft.WindowsDesktop.App/10.0.10/
-docs/
-  licenças, avisos, checksums e proveniência
+MGS1-PTBR-Patcher-<versão>-win-x64/
+  Mgs1.Patcher.Gui.exe
+  Mgs1.Patcher.Gui.dll
+  Mgs1.Patcher.Gui.Logic.dll
+  Mgs1.Patcher.Core.dll
+  Mgs1.Patcher.Gui.deps.json
+  Mgs1.Patcher.Gui.runtimeconfig.json
+  data/
+    release-manifest.json
+    patches/
+      disc1.bin.bps
+      disc1.cue.bps
+      disc2.bin.bps
+      disc2.cue.bps
+  runtime/
+    host/fxr/10.0.10/
+    shared/Microsoft.NETCore.App/10.0.10/
+    shared/Microsoft.WindowsDesktop.App/10.0.10/
+  docs/
+    licenças, avisos, checksums e proveniência
 ```
 
 O manifest fixa os tamanhos e hashes de todas as entradas, payloads e saídas.

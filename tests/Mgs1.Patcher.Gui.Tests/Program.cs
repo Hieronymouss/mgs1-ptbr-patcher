@@ -10,6 +10,8 @@ internal static class Program
         (string Name, Func<Task> Run)[] tests =
         [
             ("valid pairs are recognized exactly", ValidPairsRecognizedAsync),
+            ("one CUE path is accepted for drag-and-drop", SingleCueDropAcceptedAsync),
+            ("invalid drag-and-drop shapes are rejected", InvalidCueDropsRejectedAsync),
             ("output naming preserves the selected CUE stem", OutputNamingPolicyAsync),
             ("other-disc field mix-up is detected", WrongDiscFieldDetectionAsync),
             ("same-size hash mismatch is rejected", SameSizeHashMismatchAsync),
@@ -43,6 +45,32 @@ internal static class Program
 
         Console.WriteLine($"{tests.Length - failures}/{tests.Length} focused GUI/controller tests passed.");
         return failures == 0 ? 0 : 1;
+    }
+
+    private static Task SingleCueDropAcceptedAsync()
+    {
+        string cuePath = Path.Combine("Roms", "Metal Gear Solid (Disc 1).CUE");
+        CueDropCandidate candidate = CueDropPolicy.Evaluate([cuePath]);
+        TestAssert.Equal(CueDropCandidateKind.Accepted, candidate.Kind, "Single CUE drop was rejected.");
+        TestAssert.Equal(cuePath, candidate.CuePath!, "Accepted CUE path changed.");
+        return Task.CompletedTask;
+    }
+
+    private static Task InvalidCueDropsRejectedAsync()
+    {
+        TestAssert.Equal(
+            CueDropCandidateKind.NoFiles,
+            CueDropPolicy.Evaluate(null).Kind,
+            "Empty drop was accepted.");
+        TestAssert.Equal(
+            CueDropCandidateKind.MultipleFiles,
+            CueDropPolicy.Evaluate(["disc1.cue", "disc2.cue"]).Kind,
+            "Multiple-file drop was accepted.");
+        TestAssert.Equal(
+            CueDropCandidateKind.NotCue,
+            CueDropPolicy.Evaluate(["disc1.bin"]).Kind,
+            "Non-CUE drop was accepted.");
+        return Task.CompletedTask;
     }
 
     private static Task ProductionDataRootRejectsOverridesAsync()
