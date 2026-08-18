@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install pinned .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Mgs1.Patcher.sln -m:1
+
+      - name: Build
+        run: dotnet build Mgs1.Patcher.sln -c Release --no-restore -m:1
+
+      - name: Test patching core
+        run: dotnet run --project tests/Mgs1.Patcher.Core.Tests/Mgs1.Patcher.Core.Tests.csproj -c Release --no-build
+
+      - name: Test GUI workflow
+        run: dotnet run --project tests/Mgs1.Patcher.Gui.Tests/Mgs1.Patcher.Gui.Tests.csproj -c Release --no-build
+

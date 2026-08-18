@@ -29,6 +29,10 @@ O programa é portátil e autossuficiente. Não instala serviços, não altera o
 Registro ou o PATH, não pede privilégios de administrador, não acessa a rede e
 não envia telemetria.
 
+Esta prévia ainda não possui assinatura digital comercial. Por isso o Windows
+pode identificar o editor como desconhecido. Baixe somente da Release oficial,
+confira o SHA-256 publicado e não execute o arquivo se o checksum for diferente.
+
 ## Aplicar a tradução
 
 1. Abra `Mgs1.Patcher.Gui.exe`.
@@ -74,4 +78,3 @@ parte do histórico Git.
 
 O código está sob a licença MIT. A tradução, os payloads e as marcas envolvidas
 têm condições separadas descritas em [NOTICE.md](NOTICE.md).
-
