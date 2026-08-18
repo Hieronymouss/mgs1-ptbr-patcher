@@ -38,3 +38,42 @@ public static class CueDropPolicy
             : new CueDropCandidate(CueDropCandidateKind.NotCue, null);
     }
 }
+
+public enum DestinationDropCandidateKind
+{
+    Accepted,
+    NoPaths,
+    MultiplePaths,
+    NotDirectory,
+}
+
+public sealed record DestinationDropCandidate(DestinationDropCandidateKind Kind, string? DirectoryPath);
+
+/// <summary>
+/// Accepts one existing directory from Explorer. The patch workflow still
+/// performs its ordinary destination safety, collision, and space preflight
+/// before any output is created.
+/// </summary>
+public static class DestinationDropPolicy
+{
+    public static DestinationDropCandidate Evaluate(IEnumerable<string>? paths)
+    {
+        string[] candidates = paths?
+            .Where(static path => !string.IsNullOrWhiteSpace(path))
+            .ToArray() ?? [];
+        if (candidates.Length == 0)
+        {
+            return new DestinationDropCandidate(DestinationDropCandidateKind.NoPaths, null);
+        }
+
+        if (candidates.Length != 1)
+        {
+            return new DestinationDropCandidate(DestinationDropCandidateKind.MultiplePaths, null);
+        }
+
+        string directoryPath = candidates[0];
+        return Directory.Exists(directoryPath)
+            ? new DestinationDropCandidate(DestinationDropCandidateKind.Accepted, directoryPath)
+            : new DestinationDropCandidate(DestinationDropCandidateKind.NotDirectory, null);
+    }
+}

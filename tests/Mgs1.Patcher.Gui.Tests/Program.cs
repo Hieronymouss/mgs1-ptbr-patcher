@@ -12,6 +12,8 @@ internal static class Program
             ("valid pairs are recognized exactly", ValidPairsRecognizedAsync),
             ("one CUE path is accepted for drag-and-drop", SingleCueDropAcceptedAsync),
             ("invalid drag-and-drop shapes are rejected", InvalidCueDropsRejectedAsync),
+            ("one existing destination directory is accepted for drag-and-drop", DestinationDropAcceptedAsync),
+            ("invalid destination drops are rejected", InvalidDestinationDropsRejectedAsync),
             ("output naming preserves the selected CUE stem", OutputNamingPolicyAsync),
             ("other-disc field mix-up is detected", WrongDiscFieldDetectionAsync),
             ("same-size hash mismatch is rejected", SameSizeHashMismatchAsync),
@@ -70,6 +72,33 @@ internal static class Program
             CueDropCandidateKind.NotCue,
             CueDropPolicy.Evaluate(["disc1.bin"]).Kind,
             "Non-CUE drop was accepted.");
+        return Task.CompletedTask;
+    }
+
+    private static Task DestinationDropAcceptedAsync()
+    {
+        using GuiFixture fixture = GuiFixture.Create();
+        DestinationDropCandidate candidate = DestinationDropPolicy.Evaluate([fixture.Root]);
+        TestAssert.Equal(DestinationDropCandidateKind.Accepted, candidate.Kind, "Existing destination directory was rejected.");
+        TestAssert.Equal(fixture.Root, candidate.DirectoryPath!, "Accepted destination path changed.");
+        return Task.CompletedTask;
+    }
+
+    private static Task InvalidDestinationDropsRejectedAsync()
+    {
+        using GuiFixture fixture = GuiFixture.Create();
+        TestAssert.Equal(
+            DestinationDropCandidateKind.NoPaths,
+            DestinationDropPolicy.Evaluate(null).Kind,
+            "Empty destination drop was accepted.");
+        TestAssert.Equal(
+            DestinationDropCandidateKind.MultiplePaths,
+            DestinationDropPolicy.Evaluate([fixture.Root, fixture.InputRoot]).Kind,
+            "Multiple destination paths were accepted.");
+        TestAssert.Equal(
+            DestinationDropCandidateKind.NotDirectory,
+            DestinationDropPolicy.Evaluate([fixture.Disc1CuePath]).Kind,
+            "A file was accepted as a destination directory.");
         return Task.CompletedTask;
     }
 
