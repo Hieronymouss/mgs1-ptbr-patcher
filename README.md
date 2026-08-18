@@ -5,7 +5,7 @@ Aplicador gráfico para Windows da tradução brasileira de **Metal Gear Solid**
 
 ## Download
 
-### [⬇️ Baixar o aplicador para Windows (ZIP)](https://github.com/Hieronymouss/mgs1-ptbr-patcher/releases/download/v0.1.0-beta.2/MGS1-PTBR-Patcher-0.1.0-beta.2-win-x64.zip)
+### [⬇️ Baixar o aplicador para Windows (ZIP)](https://github.com/Hieronymouss/mgs1-ptbr-patcher/releases/download/v0.1.0-beta.3/MGS1-PTBR-Patcher-0.1.0-beta.3-win-x64.zip)
 
 Extraia todo o conteúdo antes de abrir `Mgs1.Patcher.Gui.exe`. Não execute o
 programa de dentro do ZIP.
@@ -13,7 +13,7 @@ programa de dentro do ZIP.
 Esta é uma versão beta do checkpoint traduzido atual. O executável ainda não
 possui assinatura digital comercial, então o Windows pode identificar o editor
 como desconhecido. Baixe somente deste repositório e confira o
-[SHA-256 publicado](https://github.com/Hieronymouss/mgs1-ptbr-patcher/releases/tag/v0.1.0-beta.2).
+[SHA-256 publicado](https://github.com/Hieronymouss/mgs1-ptbr-patcher/releases/tag/v0.1.0-beta.3).
 
 ## Requisitos
 
@@ -42,9 +42,10 @@ Este é um projeto de fãs, sem vínculo ou aprovação da Konami. O download n�
 contém o jogo completo, BIOS, emulador ou saves; é necessário possuir uma cópia
 legítima e compatível do jogo.
 
-O aplicador é portátil, autossuficiente e open source. Não instala serviços,
-não altera o Registro ou o PATH, não pede privilégios de administrador, não
-acessa a rede e não envia telemetria.
+O aplicador é portátil, inclui seu próprio runtime .NET dentro da pasta
+`runtime/` e é open source. Não instala serviços, não altera o Registro ou o
+PATH, não pede privilégios de administrador, não acessa a rede e não envia
+telemetria.
 
 Consulte [BUILDING.md](BUILDING.md) para compilar o código e
 [SECURITY.md](SECURITY.md) para relatar uma vulnerabilidade. O código-fonte está

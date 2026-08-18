@@ -1,7 +1,7 @@
 {
   "$schema": "../schema/release-manifest.schema.json",
   "schema_version": 1,
-  "release_id": "mgs1-ptbr-patcher-0.1.0-beta.2",
+  "release_id": "mgs1-ptbr-patcher-0.1.0-beta.3",
   "status": "release-candidate",
   "patch_format": {
     "id": "BPS1",

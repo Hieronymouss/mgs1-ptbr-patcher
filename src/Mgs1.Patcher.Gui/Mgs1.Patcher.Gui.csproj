@@ -10,6 +10,8 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <AssemblyName>Mgs1.Patcher.Gui</AssemblyName>
     <RootNamespace>Mgs1.Patcher.Gui</RootNamespace>
+    <AppHostDotNetSearch>AppRelative</AppHostDotNetSearch>
+    <AppHostRelativeDotNet>runtime</AppHostRelativeDotNet>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mgs1.Patcher.Gui.Logic\Mgs1.Patcher.Gui.Logic.csproj" />
