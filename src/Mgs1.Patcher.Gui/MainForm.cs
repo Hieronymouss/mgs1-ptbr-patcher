@@ -120,7 +120,7 @@ internal sealed class MainForm : Form
 
     private GroupBox BuildDestinationGroup()
     {
-        var group = new GroupBox { Text = "Pasta de destino", Left = 12, Top = 214, Width = 588, Height = 58 };
+        var group = new GroupBox { Text = "Pasta de destino — arraste uma pasta aqui", Left = 12, Top = 214, Width = 588, Height = 58 };
         var label = new Label { Text = "Destino:", Left = 12, Top = 24, Width = 76, TextAlign = ContentAlignment.MiddleLeft };
         destination.Left = 90;
         destination.Top = 20;
@@ -129,7 +129,24 @@ internal sealed class MainForm : Form
         choose.Click += (_, _) => ChooseDestination();
         selectorButtons.Add(choose);
         group.Controls.AddRange([label, destination, choose]);
+        ConfigureDestinationDropTarget(group);
         return group;
+    }
+
+    private void ConfigureDestinationDropTarget(Control target)
+    {
+        target.AllowDrop = true;
+        target.DragEnter += (_, eventArgs) =>
+        {
+            eventArgs.Effect = CanAcceptDestinationDrop(eventArgs.Data)
+                ? DragDropEffects.Copy
+                : DragDropEffects.None;
+        };
+        target.DragDrop += (_, eventArgs) => HandleDestinationDrop(eventArgs.Data);
+        foreach (Control child in target.Controls)
+        {
+            ConfigureDestinationDropTarget(child);
+        }
     }
 
     private Control BuildStatusArea()
@@ -159,7 +176,7 @@ internal sealed class MainForm : Form
             ApplicationDataRoot root = ApplicationDataRoot.Resolve(startupArguments);
             controller = await PatchWorkflowController.CreateAsync(root);
             controller.StateChanged += OnControllerStateChanged;
-            status.Text = "Selecione ou arraste os CUEs limpos dos Discos 1 e 2.";
+            status.Text = "Selecione ou arraste os CUEs e a pasta de destino.";
         }
         catch (Exception exception) when (exception is ApplicationDataException or PatcherException or IOException or UnauthorizedAccessException)
         {
@@ -248,6 +265,29 @@ internal sealed class MainForm : Form
         {
             EndBusy();
         }
+    }
+
+    private bool CanAcceptDestinationDrop(IDataObject? data) =>
+        controller is not null
+        && !busy
+        && DestinationDropPolicy.Evaluate(data?.GetData(DataFormats.FileDrop) as string[]).Kind == DestinationDropCandidateKind.Accepted;
+
+    private void HandleDestinationDrop(IDataObject? data)
+    {
+        if (controller is null || busy)
+        {
+            return;
+        }
+
+        DestinationDropCandidate candidate = DestinationDropPolicy.Evaluate(data?.GetData(DataFormats.FileDrop) as string[]);
+        if (candidate.Kind != DestinationDropCandidateKind.Accepted || candidate.DirectoryPath is null)
+        {
+            return;
+        }
+
+        destination.Text = candidate.DirectoryPath;
+        status.Text = "Pasta de destino selecionada. A segurança e o espaço serão conferidos antes da aplicação.";
+        RefreshButtons();
     }
 
     private void ChooseDestination()
@@ -453,7 +493,7 @@ internal sealed class MainForm : Form
     private void ShowHowTo() => MessageBox.Show(
         this,
         "1. Selecione o CUE limpo de cada disco com Procurar ou arraste-o para o painel correspondente. A BIN indicada no CUE é localizada na mesma pasta e conferida por hash.\n\n" +
-        "2. Escolha uma pasta de destino vazia. Cada par usará o nome do CUE original com o sufixo (PT-BR).\n\n" +
+        "2. Escolha uma pasta de destino vazia com Procurar ou arraste a pasta para o painel de destino. Cada par usará o nome do CUE original com o sufixo (PT-BR).\n\n" +
         "3. Clique em Aplicar tradução. Não há substituição, continuação nem aceitação de outras revisões.",
         "Como usar",
         MessageBoxButtons.OK,
