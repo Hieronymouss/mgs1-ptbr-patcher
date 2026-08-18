@@ -10,11 +10,14 @@ internal static class Program
         (string Name, Func<Task> Run)[] tests =
         [
             ("valid pairs are recognized exactly", ValidPairsRecognizedAsync),
+            ("output naming preserves the selected CUE stem", OutputNamingPolicyAsync),
             ("other-disc field mix-up is detected", WrongDiscFieldDetectionAsync),
             ("same-size hash mismatch is rejected", SameSizeHashMismatchAsync),
             ("BIN and CUE cross-disc mismatch is rejected", BinCueMismatchAsync),
             ("missing and corrupt payloads map safely", MissingAndCorruptPayloadsAsync),
+            ("selected CUE names become PT-BR output pairs", SelectedNamesBecomeOutputsAsync),
             ("existing output is refused", ExistingOutputAsync),
+            ("cross-disc output-name collision is refused before apply", OutputNameCollisionAsync),
             ("insufficient space maps safely", InsufficientSpaceAsync),
             ("cancellation rolls back the active disc", CancellationRollbackAsync),
             ("progress and workflow states transition", ProgressAndStateTransitionsAsync),
@@ -72,6 +75,28 @@ internal static class Program
         TestAssert.Equal(DiscSelectionKind.Ready, disc2.Kind, "Disc 2 was not recognized.");
         TestAssert.Equal("disc1", disc1.RecognizedDiscId!, "Disc 1 identity differs.");
         TestAssert.Equal("disc2", disc2.RecognizedDiscId!, "Disc 2 identity differs.");
+    }
+
+    private static Task OutputNamingPolicyAsync()
+    {
+        OutputPairNames names = OutputNamePolicy.FromCuePath(Path.Combine(
+            "Roms",
+            "Metal Gear Solid (USA) (Disc 1) (Rev 1).cue"));
+        TestAssert.Equal(
+            "Metal Gear Solid (USA) (Disc 1) (Rev 1) (PT-BR).bin",
+            names.BinFileName,
+            "BIN output did not preserve the selected CUE stem.");
+        TestAssert.Equal(
+            "Metal Gear Solid (USA) (Disc 1) (Rev 1) (PT-BR).cue",
+            names.CueFileName,
+            "CUE output did not preserve the selected CUE stem.");
+
+        OutputPairNames alreadySuffixed = OutputNamePolicy.FromCuePath("Game (PT-BR).cue");
+        TestAssert.Equal("Game (PT-BR).cue", alreadySuffixed.CueFileName, "PT-BR suffix was duplicated.");
+
+        OutputPairNames shortened = OutputNamePolicy.FromCuePath(new string('x', 300) + ".cue");
+        TestAssert.True(shortened.CueFileName.Length <= 244, "Excessive CUE name was not bounded safely.");
+        return Task.CompletedTask;
     }
 
     private static async Task WrongDiscFieldDetectionAsync()
@@ -132,7 +157,7 @@ internal static class Program
         using GuiFixture fixture = GuiFixture.Create();
         PatchWorkflowController controller = await SelectValidPairsAsync(fixture).ConfigureAwait(false);
         Directory.CreateDirectory(fixture.OutputDirectory);
-        string existing = Path.Combine(fixture.OutputDirectory, "mgs1-ptbr-disc1.bin");
+        string existing = Path.Combine(fixture.OutputDirectory, "disc1 (PT-BR).bin");
         byte[] sentinel = "do-not-replace"u8.ToArray();
         File.WriteAllBytes(existing, sentinel);
         PatchWorkflowResult result = await controller.ApplyAsync(fixture.OutputDirectory).ConfigureAwait(false);
@@ -141,12 +166,65 @@ internal static class Program
         TestAssert.True(File.ReadAllBytes(existing).SequenceEqual(sentinel), "Existing output changed.");
     }
 
+    private static async Task SelectedNamesBecomeOutputsAsync()
+    {
+        using GuiFixture fixture = GuiFixture.Create();
+        PatchWorkflowController controller = await SelectValidPairsAsync(fixture).ConfigureAwait(false);
+        PatchWorkflowResult result = await controller.ApplyAsync(fixture.OutputDirectory).ConfigureAwait(false);
+        TestAssert.True(result.Succeeded, "Valid named-output apply failed.");
+
+        string disc1Bin = Path.Combine(fixture.OutputDirectory, "disc1 (PT-BR).bin");
+        string disc1Cue = Path.Combine(fixture.OutputDirectory, "disc1 (PT-BR).cue");
+        string disc2Bin = Path.Combine(fixture.OutputDirectory, "disc2 (PT-BR).bin");
+        string disc2Cue = Path.Combine(fixture.OutputDirectory, "disc2 (PT-BR).cue");
+        TestAssert.True(File.Exists(disc1Bin), "Disc 1 BIN did not inherit the selected CUE name.");
+        TestAssert.True(File.Exists(disc1Cue), "Disc 1 CUE did not inherit the selected CUE name.");
+        TestAssert.True(File.Exists(disc2Bin), "Disc 2 BIN did not inherit the selected CUE name.");
+        TestAssert.True(File.Exists(disc2Cue), "Disc 2 CUE did not inherit the selected CUE name.");
+        TestAssert.True(
+            File.ReadAllText(disc1Cue).Contains("\"disc1 (PT-BR).bin\"", StringComparison.Ordinal),
+            "Disc 1 CUE does not reference its renamed BIN.");
+        TestAssert.True(
+            File.ReadAllText(disc2Cue).Contains("\"disc2 (PT-BR).bin\"", StringComparison.Ordinal),
+            "Disc 2 CUE does not reference its renamed BIN.");
+        TestAssert.False(File.Exists(Path.Combine(fixture.OutputDirectory, "mgs1-ptbr-disc1.bin")), "Checkpoint Disc 1 name leaked into publication.");
+        TestAssert.False(File.Exists(Path.Combine(fixture.OutputDirectory, "mgs1-ptbr-disc2.bin")), "Checkpoint Disc 2 name leaked into publication.");
+    }
+
+    private static async Task OutputNameCollisionAsync()
+    {
+        using GuiFixture fixture = GuiFixture.Create();
+        string firstRoot = Path.Combine(fixture.Root, "same-name-disc1");
+        string secondRoot = Path.Combine(fixture.Root, "same-name-disc2");
+        Directory.CreateDirectory(firstRoot);
+        Directory.CreateDirectory(secondRoot);
+        File.Copy(fixture.Disc1BinPath, Path.Combine(firstRoot, "disc1.bin"));
+        File.Copy(fixture.Disc1CuePath, Path.Combine(firstRoot, "same-name.cue"));
+        File.Copy(fixture.Disc2BinPath, Path.Combine(secondRoot, "disc2.bin"));
+        File.Copy(fixture.Disc2CuePath, Path.Combine(secondRoot, "same-name.cue"));
+
+        PatchWorkflowController controller = await CreateControllerAsync(fixture).ConfigureAwait(false);
+        TestAssert.Equal(
+            DiscSelectionKind.Ready,
+            (await controller.SelectCueAsync("disc1", Path.Combine(firstRoot, "same-name.cue")).ConfigureAwait(false)).Kind,
+            "Disc 1 collision fixture was not recognized.");
+        TestAssert.Equal(
+            DiscSelectionKind.Ready,
+            (await controller.SelectCueAsync("disc2", Path.Combine(secondRoot, "same-name.cue")).ConfigureAwait(false)).Kind,
+            "Disc 2 collision fixture was not recognized.");
+
+        PatchWorkflowResult result = await controller.ApplyAsync(fixture.OutputDirectory).ConfigureAwait(false);
+        TestAssert.False(result.Succeeded, "Colliding output names unexpectedly applied.");
+        TestAssert.Equal(PatchUserErrorCategory.OutputNameConflict, result.Message.Category, "Collision category differs.");
+        TestAssert.False(Directory.Exists(fixture.OutputDirectory), "Collision created an output before preflight completed.");
+    }
+
     private static async Task InsufficientSpaceAsync()
     {
         using GuiFixture fixture = GuiFixture.Create();
         string root = Path.GetPathRoot(fixture.Root) ?? throw new InvalidOperationException("Test volume has no root.");
         long available = new DriveInfo(root).AvailableFreeSpace;
-        PatchApplyOptions options = TestOptions with { FreeSpaceReserveBytes = checked(available + 1) };
+        PatchApplyOptions options = TestOptions with { FreeSpaceReserveBytes = checked(available + 1024L * 1024 * 1024) };
         PatchWorkflowController controller = await SelectValidPairsAsync(fixture, options).ConfigureAwait(false);
         PatchWorkflowResult result = await controller.ApplyAsync(fixture.OutputDirectory).ConfigureAwait(false);
         TestAssert.False(result.Succeeded, "Insufficient-space apply unexpectedly succeeded.");

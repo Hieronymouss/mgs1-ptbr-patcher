@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Runtime.ExceptionServices;
+using System.Text;
 
 namespace Mgs1.Patcher.Core;
 
@@ -8,11 +9,17 @@ public sealed record BundleApplyRequest(
     string SourceBinPath,
     string SourceCuePath,
     string PatchRootPath,
-    string OutputDirectoryPath);
+    string OutputDirectoryPath,
+    string? OutputBinFileName = null,
+    string? OutputCueFileName = null);
 
 public sealed record VerifiedPatch(PatchSpec Spec, FileDigest Digest, BpsPatchInfo Bps);
 
-public sealed record VerifiedOutput(ArtifactSpec Spec, string Path, BpsApplyResult Bps);
+public sealed record VerifiedOutput(
+    ArtifactSpec Spec,
+    string Path,
+    FileDigest PublishedDigest,
+    BpsApplyResult Bps);
 
 public sealed record BundleApplyResult(
     string ReleaseId,
@@ -137,10 +144,23 @@ public static class PatchBundleApplier
             throw new PatcherSafetyException($"Output directory path is an existing file: {outputDirectory}");
         }
 
+        var outputFileNames = new Dictionary<FileKind, string>
+        {
+            [FileKind.Bin] = ResolveOutputFileName(
+                request.OutputBinFileName,
+                disc.Target.Bin.FileName,
+                ".bin",
+                "BIN"),
+            [FileKind.Cue] = ResolveOutputFileName(
+                request.OutputCueFileName,
+                disc.Target.Cue.FileName,
+                ".cue",
+                "CUE"),
+        };
         var outputPaths = new Dictionary<FileKind, string>
         {
-            [FileKind.Bin] = Path.Combine(outputDirectory, disc.Target.Bin.FileName),
-            [FileKind.Cue] = Path.Combine(outputDirectory, disc.Target.Cue.FileName),
+            [FileKind.Bin] = Path.Combine(outputDirectory, outputFileNames[FileKind.Bin]),
+            [FileKind.Cue] = Path.Combine(outputDirectory, outputFileNames[FileKind.Cue]),
         };
         var protectedPaths = sourcePaths.Values.Concat(patchPaths.Values).ToArray();
         foreach (FileKind kind in FileKindExtensions.All)
@@ -169,7 +189,10 @@ public static class PatchBundleApplier
         long requiredFreeSpace;
         try
         {
-            temporaryDiskPeak = checked(disc.Target.Bin.Size + disc.Target.Cue.Size);
+            int cueNameGrowth = Encoding.UTF8.GetByteCount(outputFileNames[FileKind.Bin])
+                - Encoding.UTF8.GetByteCount(disc.Target.Bin.FileName);
+            long publishedCueSize = checked(disc.Target.Cue.Size + Math.Max(0, cueNameGrowth));
+            temporaryDiskPeak = checked(disc.Target.Bin.Size + publishedCueSize);
             requiredFreeSpace = checked(temporaryDiskPeak + options.FreeSpaceReserveBytes);
         }
         catch (OverflowException exception)
@@ -208,7 +231,7 @@ public static class PatchBundleApplier
         {
             partialPaths[kind] = Path.Combine(
                 outputDirectory,
-                $".{disc.Target.Get(kind).FileName}.partial-{Guid.NewGuid():N}");
+                $".{outputFileNames[kind]}.partial-{Guid.NewGuid():N}");
         }
 
         var applyResults = new Dictionary<FileKind, BpsApplyResult>();
@@ -273,6 +296,27 @@ public static class PatchBundleApplier
                 ClearHiddenAttribute(partialPaths[kind]);
             }
 
+            await CueSheetPublisher.RewriteCompanionNameAsync(
+                partialPaths[FileKind.Cue],
+                disc.Target.Bin.FileName,
+                outputFileNames[FileKind.Bin],
+                cancellationToken).ConfigureAwait(false);
+
+            var publishedDigests = new Dictionary<FileKind, FileDigest>
+            {
+                [FileKind.Bin] = ToDigest(applyResults[FileKind.Bin]),
+                [FileKind.Cue] = string.Equals(
+                    outputFileNames[FileKind.Bin],
+                    disc.Target.Bin.FileName,
+                    StringComparison.Ordinal)
+                    ? ToDigest(applyResults[FileKind.Cue])
+                    : await FileIntegrity.DigestAsync(
+                        partialPaths[FileKind.Cue],
+                        options.IoBufferSize,
+                        report: null,
+                        cancellationToken).ConfigureAwait(false),
+            };
+
             foreach (FileKind kind in FileKindExtensions.All)
             {
                 Report(
@@ -303,8 +347,16 @@ public static class PatchBundleApplier
                 ToNamedReadOnly(verifiedPatches),
                 ToNamedReadOnly(new Dictionary<FileKind, VerifiedOutput>
                 {
-                    [FileKind.Bin] = new VerifiedOutput(disc.Target.Bin, outputPaths[FileKind.Bin], applyResults[FileKind.Bin]),
-                    [FileKind.Cue] = new VerifiedOutput(disc.Target.Cue, outputPaths[FileKind.Cue], applyResults[FileKind.Cue]),
+                    [FileKind.Bin] = new VerifiedOutput(
+                        disc.Target.Bin,
+                        outputPaths[FileKind.Bin],
+                        publishedDigests[FileKind.Bin],
+                        applyResults[FileKind.Bin]),
+                    [FileKind.Cue] = new VerifiedOutput(
+                        disc.Target.Cue,
+                        outputPaths[FileKind.Cue],
+                        publishedDigests[FileKind.Cue],
+                        applyResults[FileKind.Cue]),
                 }),
                 inputsPreserved,
                 temporaryDiskPeak,
@@ -334,6 +386,50 @@ public static class PatchBundleApplier
             ExceptionDispatchInfo.Capture(failure).Throw();
             throw;
         }
+    }
+
+    private static FileDigest ToDigest(BpsApplyResult result) =>
+        new(result.OutputSize, result.OutputSha256, result.OutputCrc32);
+
+    private static string ResolveOutputFileName(
+        string? requested,
+        string manifestDefault,
+        string expectedExtension,
+        string label)
+    {
+        string fileName = string.IsNullOrWhiteSpace(requested) ? manifestDefault : requested;
+        bool unsafeCharacter = fileName.Any(character =>
+            char.IsControl(character)
+            || character is '<' or '>' or ':' or '"' or '/' or '|' or '?' or '*'
+            || character == (char)92);
+        if (fileName.Length is <= 0 or > 255
+            || fileName is "." or ".."
+            || unsafeCharacter
+            || fileName.EndsWith(' ')
+            || fileName.EndsWith('.')
+            || !string.Equals(fileName, Path.GetFileName(fileName), StringComparison.Ordinal)
+            || Path.IsPathRooted(fileName)
+            || !fileName.EndsWith(expectedExtension, StringComparison.OrdinalIgnoreCase)
+            || IsReservedWindowsName(fileName))
+        {
+            throw new PatcherSafetyException($"Unsafe {label} output file name: {fileName}");
+        }
+
+        return fileName;
+    }
+
+    private static bool IsReservedWindowsName(string fileName)
+    {
+        string stem = Path.GetFileNameWithoutExtension(fileName).ToUpperInvariant();
+        if (stem is "CON" or "PRN" or "AUX" or "NUL")
+        {
+            return true;
+        }
+
+        return stem.Length == 4
+            && (stem.StartsWith("COM", StringComparison.OrdinalIgnoreCase)
+                || stem.StartsWith("LPT", StringComparison.OrdinalIgnoreCase))
+            && stem[3] is >= '1' and <= '9';
     }
 
     private static string NormalizePath(string path, string label)

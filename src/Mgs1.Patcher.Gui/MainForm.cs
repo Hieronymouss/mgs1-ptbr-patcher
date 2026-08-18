@@ -404,7 +404,7 @@ internal sealed class MainForm : Form
     private void ShowHowTo() => MessageBox.Show(
         this,
         "1. Selecione o CUE limpo de cada disco. A BIN indicada no CUE é localizada na mesma pasta e conferida por hash.\n\n" +
-        "2. Escolha uma pasta de destino vazia para os nomes definidos pelo lançamento.\n\n" +
+        "2. Escolha uma pasta de destino vazia. Cada par usará o nome do CUE original com o sufixo (PT-BR).\n\n" +
         "3. Clique em Aplicar tradução. Não há substituição, continuação nem aceitação de outras revisões.",
         "Como usar",
         MessageBoxButtons.OK,
