@@ -29,6 +29,7 @@ public enum PatchUserErrorCategory
     InputIntegrity,
     ApplicationPayload,
     ExistingOutput,
+    OutputNameConflict,
     InsufficientSpace,
     UnsafePath,
     Cancelled,
@@ -164,9 +165,16 @@ public sealed class PatchWorkflowController
         var completed = new List<string>(2);
         try
         {
-            await ApplyDiscAsync("disc1", disc1, outputDirectory, externalProgress, cancellationToken).ConfigureAwait(false);
+            OutputPairNames disc1Output = OutputNamePolicy.FromCuePath(disc1.CuePath!);
+            OutputPairNames disc2Output = OutputNamePolicy.FromCuePath(disc2.CuePath!);
+            if (OutputNamePolicy.Collides(disc1Output, disc2Output))
+            {
+                throw new PatcherSafetyException("The selected CUE files produce colliding output file names.");
+            }
+
+            await ApplyDiscAsync("disc1", disc1, disc1Output, outputDirectory, externalProgress, cancellationToken).ConfigureAwait(false);
             completed.Add("disc1");
-            await ApplyDiscAsync("disc2", disc2, outputDirectory, externalProgress, cancellationToken).ConfigureAwait(false);
+            await ApplyDiscAsync("disc2", disc2, disc2Output, outputDirectory, externalProgress, cancellationToken).ConfigureAwait(false);
             completed.Add("disc2");
             stage = PatchWorkflowStage.Completed;
             progress = null;
@@ -198,6 +206,7 @@ public sealed class PatchWorkflowController
     private async Task ApplyDiscAsync(
         string discId,
         DiscSelectionState selection,
+        OutputPairNames outputNames,
         string outputDirectory,
         IProgress<PatchProgress>? externalProgress,
         CancellationToken cancellationToken)
@@ -220,7 +229,9 @@ public sealed class PatchWorkflowController
                 selection.BinPath!,
                 selection.CuePath!,
                 dataRoot.PatchRootPath,
-                outputDirectory),
+                outputDirectory,
+                outputNames.BinFileName,
+                outputNames.CueFileName),
             requestOptions,
             cancellationToken).ConfigureAwait(false);
     }

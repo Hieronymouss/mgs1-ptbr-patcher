@@ -40,12 +40,18 @@ public static class PatchUserMessages
             return message.Contains("patch", StringComparison.OrdinalIgnoreCase)
                 || message.Contains("payload", StringComparison.OrdinalIgnoreCase)
                 || message.Contains("BPS", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("target CUE", StringComparison.OrdinalIgnoreCase)
                 ? PatchUserErrorCategory.ApplicationPayload
                 : PatchUserErrorCategory.InputIntegrity;
         }
 
         if (exception is PatcherSafetyException)
         {
+            if (message.Contains("colliding output file names", StringComparison.OrdinalIgnoreCase))
+            {
+                return PatchUserErrorCategory.OutputNameConflict;
+            }
+
             if (message.Contains("overwrite", StringComparison.OrdinalIgnoreCase))
             {
                 return PatchUserErrorCategory.ExistingOutput;
@@ -69,7 +75,8 @@ public static class PatchUserMessages
         {
             PatchUserErrorCategory.InputIntegrity => "A imagem selecionada não é compatível ou foi modificada. É necessário o par BIN/CUE limpo exato USA Rev 1.",
             PatchUserErrorCategory.ApplicationPayload => "Os dados de aplicação necessários estão ausentes ou corrompidos. Não é seguro continuar.",
-            PatchUserErrorCategory.ExistingOutput => "Já existe uma saída com o nome definido pelo lançamento. A substituição foi recusada.",
+            PatchUserErrorCategory.ExistingOutput => "Já existe uma saída com o nome PT-BR derivado do CUE selecionado. A substituição foi recusada.",
+            PatchUserErrorCategory.OutputNameConflict => "Os dois CUEs selecionados resultariam no mesmo nome de saída. Renomeie um dos CUEs originais e tente novamente.",
             PatchUserErrorCategory.InsufficientSpace => "Não há espaço livre suficiente para produzir o par de saída com segurança.",
             PatchUserErrorCategory.UnsafePath => "Um caminho não passou pelas verificações de segurança. A operação foi recusada.",
             PatchUserErrorCategory.Cancelled => "A operação foi cancelada.",

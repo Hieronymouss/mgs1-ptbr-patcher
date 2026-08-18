@@ -25,6 +25,8 @@ internal static class Program
             ("target CRC mismatch rejected", TargetCrcMismatchAsync),
             ("forced output mismatch cleans partial pair", ForcedOutputMismatchAsync),
             ("existing output is preserved", ExistingOutputAsync),
+            ("custom output pair rewrites CUE safely", CustomOutputPairAsync),
+            ("unsafe custom output name is rejected", UnsafeCustomOutputNameAsync),
             ("output-pair disk preflight rejects insufficient space", DiskPreflightAsync),
             ("manifest traversal and absolute paths rejected", UnsafeManifestPathsAsync),
             ("cancellation cleans partial output", CancellationAsync),
@@ -213,13 +215,63 @@ internal static class Program
         TestAssert.Equal(1, Directory.EnumerateFileSystemEntries(fixture.OutputDirectory).Count(), "Unexpected partial was created.");
     }
 
+    private static async Task CustomOutputPairAsync()
+    {
+        using TestFixture fixture = TestFixture.Create();
+        ReleaseManifest manifest = await ManifestLoader.LoadAsync(fixture.ManifestPath).ConfigureAwait(false);
+        const string binName = "My Original Disc (PT-BR).bin";
+        const string cueName = "My Original Disc (PT-BR).cue";
+        BundleApplyResult result = await PatchBundleApplier.ApplyAsync(
+            manifest,
+            Request(fixture) with
+            {
+                OutputBinFileName = binName,
+                OutputCueFileName = cueName,
+            },
+            TestOptions).ConfigureAwait(false);
+
+        string binPath = Path.Combine(fixture.OutputDirectory, binName);
+        string cuePath = Path.Combine(fixture.OutputDirectory, cueName);
+        TestAssert.SequenceEqual(
+            File.ReadAllBytes(fixture.TargetBinPath),
+            File.ReadAllBytes(binPath),
+            "Custom BIN output differs from the verified target.");
+        TestAssert.SequenceEqual(
+            Encoding.UTF8.GetBytes("FILE \"My Original Disc (PT-BR).bin\" BINARY\n"),
+            File.ReadAllBytes(cuePath),
+            "Published CUE does not reference the custom BIN name.");
+        TestAssert.Equal(
+            TestFixture.Sha256(cuePath),
+            result.Outputs["cue"].PublishedDigest.Sha256,
+            "Published CUE digest differs from the final file.");
+        TestAssert.False(File.Exists(Path.Combine(fixture.OutputDirectory, "accepted.bin")), "Manifest BIN name leaked into publication.");
+        TestAssert.False(File.Exists(Path.Combine(fixture.OutputDirectory, "accepted.cue")), "Manifest CUE name leaked into publication.");
+    }
+
+    private static async Task UnsafeCustomOutputNameAsync()
+    {
+        using TestFixture fixture = TestFixture.Create();
+        ReleaseManifest manifest = await ManifestLoader.LoadAsync(fixture.ManifestPath).ConfigureAwait(false);
+        await TestAssert.ThrowsAsync<PatcherSafetyException>(
+            () => PatchBundleApplier.ApplyAsync(
+                manifest,
+                Request(fixture) with
+                {
+                    OutputBinFileName = "../escape.bin",
+                    OutputCueFileName = "safe.cue",
+                },
+                TestOptions),
+            "unsafe BIN output file name").ConfigureAwait(false);
+        TestAssert.False(Directory.Exists(fixture.OutputDirectory), "Unsafe output name created the destination directory.");
+    }
+
     private static async Task DiskPreflightAsync()
     {
         using TestFixture fixture = TestFixture.Create();
         string? volumeRoot = Path.GetPathRoot(fixture.Root);
         TestAssert.True(!string.IsNullOrEmpty(volumeRoot), "Test volume root is unavailable.");
         long available = new DriveInfo(volumeRoot!).AvailableFreeSpace;
-        var options = TestOptions with { FreeSpaceReserveBytes = checked(available + 1) };
+        var options = TestOptions with { FreeSpaceReserveBytes = checked(available + 1024L * 1024 * 1024) };
         ReleaseManifest manifest = await ManifestLoader.LoadAsync(fixture.ManifestPath).ConfigureAwait(false);
         await TestAssert.ThrowsAsync<PatcherSafetyException>(
             () => PatchBundleApplier.ApplyAsync(manifest, Request(fixture), options),
