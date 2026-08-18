@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <VersionSuffix>beta.1</VersionSuffix>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+    <Authors>MGS1 PT-BR patcher contributors</Authors>
+    <Copyright>Copyright (c) 2026 MGS1 PT-BR patcher contributors</Copyright>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/Hieronymouss/mgs1-ptbr-patcher</RepositoryUrl>
+  </PropertyGroup>
+</Project>
+

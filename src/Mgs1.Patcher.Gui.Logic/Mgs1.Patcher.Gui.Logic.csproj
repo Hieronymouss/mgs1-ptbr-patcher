@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <AssemblyName>Mgs1.Patcher.Gui.Logic</AssemblyName>
+    <RootNamespace>Mgs1.Patcher.Gui.Logic</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Mgs1.Patcher.Core\Mgs1.Patcher.Core.csproj" />
+  </ItemGroup>
+</Project>

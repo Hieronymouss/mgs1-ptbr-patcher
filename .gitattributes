@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.bin binary
+*.bps binary
+*.cue binary
+*.dat binary
+*.dir binary
+*.img binary
+*.iso binary
+*.patch binary
+*.pcx binary
+*.rpk binary
+*.str binary

@@ -1,0 +1,98 @@
+{
+  "$schema": "../schema/release-manifest.schema.json",
+  "schema_version": 1,
+  "release_id": "mgs1-ptbr-patcher-0.1.0-beta.1",
+  "status": "release-candidate",
+  "patch_format": {
+    "id": "BPS1",
+    "profile": "linear-streaming-v1",
+    "specification": "https:\u002f\u002fgreeky.org/bps-file-format-specification.html",
+    "implementation_license": "MIT"
+  },
+  "discs": [
+    {
+      "id": "disc1",
+      "display_name": "Metal Gear Solid Disc 1 U.S. Rev 1 to PT-BR photo-data checkpoint",
+      "authority_date": "2026-08-17",
+      "acceptance_scope": "Runtime-accepted cumulative interface build through the photo-data milestone; no global dialogue or final-translation claim.",
+      "source": {
+        "bin": {
+          "file_name": "Metal Gear Solid (USA) (Disc 1) (Rev 1).bin",
+          "size": 705614112,
+          "sha256": "74ff560b775ba49718beb1c524dc105125872bf3b7f56af1b49a226d1c79edf9"
+        },
+        "cue": {
+          "file_name": "Metal Gear Solid (USA) (Disc 1) (Rev 1).cue",
+          "size": 105,
+          "sha256": "9cfe497ce29dec2dce1cc571d64ac4bcb2a278e53974312ec973468fb539d8c2"
+        }
+      },
+      "target": {
+        "bin": {
+          "file_name": "mgs1-ptbr-disc1-photo-data-2026-08-13.bin",
+          "size": 705614112,
+          "sha256": "f6c72a0e1f2dbfa6d71be46fe9246050bfb45b75a4d1561db4a3be196b3e05c3"
+        },
+        "cue": {
+          "file_name": "mgs1-ptbr-disc1-photo-data-2026-08-13.cue",
+          "size": 103,
+          "sha256": "4dea6982152f53550574ce8975c180c141ce7faaea3a11c732273760afc1987d"
+        }
+      },
+      "patches": {
+        "bin": {
+          "file": "disc1.bin.bps",
+          "size": 1866265,
+          "sha256": "b6f4a40a0a5a6d8fcb2b7bf84c1390cad44222cb3d7ae410b30715d24605879c"
+        },
+        "cue": {
+          "file": "disc1.cue.bps",
+          "size": 174,
+          "sha256": "21247a7ce99ce54ac6ef0c1ca15883f8bc84df3258138b3179a71bd7b566a5c8"
+        }
+      }
+    },
+    {
+      "id": "disc2",
+      "display_name": "Metal Gear Solid Disc 2 U.S. Rev 1 to PT-BR late-inventory checkpoint",
+      "authority_date": "2026-08-17",
+      "acceptance_scope": "Independently reviewed and bounded-runtime-accepted for accessible requested routes through the late-inventory residual checkpoint; CINEMA and waived post-Raven regression are not claimed.",
+      "source": {
+        "bin": {
+          "file_name": "Metal Gear Solid (USA) (Disc 2) (Rev 1).bin",
+          "size": 731911824,
+          "sha256": "ef81ca977d6e8be7c3dec380339fac709209633b7a4e8a399c0865fb729fa6ed"
+        },
+        "cue": {
+          "file_name": "Metal Gear Solid (USA) (Disc 2) (Rev 1).cue",
+          "size": 105,
+          "sha256": "6ba0d45087a426935092bd557876986713f88b6efa6061ca97e50c6b4ed94e4b"
+        }
+      },
+      "target": {
+        "bin": {
+          "file_name": "mgs1-ptbr-disc2-late-inventory-residuals-2026-08-16.bin",
+          "size": 731911824,
+          "sha256": "c43e2b53b8e537baff8aaf4cee8546ff03060b87b6b3e8a0638233c77de7ffa1"
+        },
+        "cue": {
+          "file_name": "mgs1-ptbr-disc2-late-inventory-residuals-2026-08-16.cue",
+          "size": 117,
+          "sha256": "eb1ef126a39523709d906c2b55804146705dae5208bfea3bc44c0351660b5973"
+        }
+      },
+      "patches": {
+        "bin": {
+          "file": "disc2.bin.bps",
+          "size": 870953,
+          "sha256": "3f285addb79b491197ba0474a4c29e86beb07afbe4f7f4b20f9d7f19084bf887"
+        },
+        "cue": {
+          "file": "disc2.cue.bps",
+          "size": 188,
+          "sha256": "2acdc19368f298f4b71c9d8abd3a1fefb5b6ed04a278401b25ef976a37eb7b91"
+        }
+      }
+    }
+  ]
+}

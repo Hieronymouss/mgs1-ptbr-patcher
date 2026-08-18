@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+.vs/
+.dotnet-home/
+.packages/
+artifacts/
+local/
+*.user
+*.suo
+*.pdb
+*.zip
+*.bin
+*.cue
+*.img
+*.iso
+*.chd
+*.bps
